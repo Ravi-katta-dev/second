@@ -45,14 +45,40 @@ const $=id=>document.getElementById(id);
 const answerKey=Object.fromEntries('BDADAADCCCCCDCCBCADABDDAAAADDBDACABDADACACDABDBCDDAACDDCBADADDABDCAABCABDCDCDACDDCCCDCCAAAAABDBDCADAAABBCCBBCAACDACADBDBAABBAAADACAABBDADCDDBABCCDDBAADACBADDDCCADDDACBACCBDADABDAABCCBDACDDDCABDDAABACACCBDCACBDACACCADDACADCBACCCCBCBCABABBCABBAABCCCCBCCBBCBBDCAAACCABBBBCBAABADCBCBADADCACCDDBCDDBAAADABDCCABCAABDCCCBABAACBAACDADACABCACBBBBBCDCAADBDACBCACBDCBCDBBBACDADDACCDABCCADDCDCAAABBADCACDBBBACCAB'.split('').map((letter,i)=>[i+1,letter]));
 let bank=[], activeSet=[], answers={}, review=new Set(), index=0, remaining=5400, interval=null, finished=false, testLabel='';
 function show(id){['home','test','results'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function parseQuestion(part){
+ const lines=part.replace(/\r/g,'\n').split('\n').map(s=>s.trim()).filter(s=>s&&
+  !/\d+(?:\.\d+)?%\s*(?:attempted right|wrong)\b/i.test(s)&&
+  !/^RRB Section Controller/i.test(s)&&s!=='By RankMitra'&&
+  !/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)&&
+  !/^\d{1,2}:\d{2}\s*(?:AM|PM)\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)$/i.test(s));
+ const clean=lines.join('\n').trim();
+ const re=/(?:^|\s)([ABCD])[.)](?=\s|$)/g, matches=[...clean.matchAll(re)].map(m=>({
+  letter:m[1],start:m.index+(m[0].length===2?0:1),end:m.index+m[0].length
+ }));
+ let sequence=null;
+ for(let i=0;i<matches.length;i++){
+  if(matches[i].letter!=='A')continue;
+  const indexes=[i];let pos=i+1;
+  for(const letter of ['B','C','D']){
+   const j=matches.findIndex((m,k)=>k>=pos&&m.letter===letter);
+   if(j<0)break;
+   indexes.push(j);pos=j+1;
+  }
+  if(indexes.length===4){sequence=indexes;break}
+ }
+ if(!sequence)return {text:clean,options:['','','','']};
+ const first=matches[sequence[0]].start;
+ const options=sequence.map((j,k)=>clean.slice(matches[j].end,k<3?matches[sequence[k+1]].start:clean.length).trim());
+ return {text:clean.slice(0,first).trim(),options};
+}
 function splitQuestions(raw){
  const text=raw.replace(/\r/g,'\n').replace(/\f/g,'\n');
- const re=/^\s*(\d{1,3})\.\)\s*/gm, hits=[...text.matchAll(re)], found=[];
+ const re=/^\s*(\d{1,3})\.\)\s*/gm, hits=[...text.matchAll(re)], found=[], seen=new Set();
  for(let i=0;i<hits.length;i++){
-  const n=Number(hits[i][1]); if(n<1||n>1000)continue;
-  let part=text.slice(hits[i].index+(hits[i][0].length-hits[i][0].trimStart().length),i+1<hits.length?hits[i+1].index:text.length);
-  part=part.replace(/^\s*\d{1,3}\.\)\s*/,'').split('\n').map(s=>s.trim()).filter(s=>s&&!/\d+(?:\.\d+)?%\s*attempted right/i.test(s)&&!/^RRB Section Controller/i.test(s)&&s!=='By RankMitra').join('\n').trim();
-  if(!found.some(q=>q.id===n))found.push({id:n,text:part});
+  const n=Number(hits[i][1]); if(n<1||n>1000||seen.has(n))continue;
+  const start=hits[i].index+(hits[i][0].length-hits[i][0].trimStart().length);
+  const part=text.slice(start,i+1<hits.length?hits[i+1].index:text.length).replace(/^\s*\d{1,3}\.\)\s*/,'');
+  found.push({id:n,...parseQuestion(part)});seen.add(n);
  }
  return found.sort((a,b)=>a.id-b.id);
 }
@@ -64,8 +90,12 @@ $('loadPdf').addEventListener('click',async()=>{
   const bytes=await file.arrayBuffer(), pdf=await pdfjsLib.getDocument({data:bytes}).promise;let raw='';
   for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),content=await page.getTextContent();const lines=[];let lastY=null,line='';for(const item of content.items){const y=Math.round(item.transform?.[5]||0);if(lastY!==null&&Math.abs(y-lastY)>2){lines.push(line);line=''}line+=(line?' ':'')+item.str;lastY=y}if(line)lines.push(line);raw+=lines.join('\n')+'\n';if(p%10===0)$('loadStatus').textContent='Reading page '+p+' of '+pdf.numPages+'…'}
   bank=splitQuestions(raw);
-  if(!bank.length)throw new Error('Could not find numbered questions. Please select the original question PDF.');
-  $('loadStatus').textContent='Imported '+bank.length+' numbered questions. Choose a set below.';
+  const ids=new Set(bank.map(q=>q.id)),missing=Array.from({length:400},(_,i)=>i+1).filter(n=>!ids.has(n));
+  if(bank.length!==400||missing.length||ids.size!==bank.length){
+   const detail=missing.length?' Missing question IDs: '+missing.slice(0,12).join(', ')+(missing.length>12?'…':'')+'.':'';
+   throw new Error('Expected 400 unique questions, but found '+bank.length+'.'+detail+' Please use the original RankMitra PDF.');
+  }
+  $('loadStatus').textContent='Imported and validated all 400 questions. Choose a set below.';
   renderSets();
  }catch(e){$('loadStatus').textContent='Import failed: '+e.message+'. Try downloading the PDF and selecting it again.'}
  finally{$('loadPdf').disabled=false}
@@ -82,7 +112,7 @@ function renderQuestion(){
  const q=activeSet[index];$('qNumber').textContent='Question '+q.id;$('qText').textContent=q.text||'[Question text appears to be image-based in the source PDF. Refer to the original PDF for this question.]';
  $('progress').textContent='Question '+(index+1)+' of '+activeSet.length;$('savedState').textContent=answers[q.id]?'Selected: '+answers[q.id]:'Not answered';
  $('answers').innerHTML='';
- ['A','B','C','D'].forEach(letter=>{const b=document.createElement('button');b.className='answer'+(answers[q.id]===letter?' selected':'');b.innerHTML='<span class="letter">'+letter+'</span><span>Option '+letter+'</span>';b.onclick=()=>{answers[q.id]=letter;renderQuestion()};$('answers').appendChild(b)});
+ ['A','B','C','D'].forEach((letter,i)=>{const b=document.createElement('button');b.className='answer'+(answers[q.id]===letter?' selected':'');const label=document.createElement('span');label.className='letter';label.textContent=letter;const text=document.createElement('span');text.textContent=q.options&&q.options[i]?q.options[i]:'Choice text is image-based or unavailable in extracted PDF; refer to the original PDF.';b.append(label,text);b.onclick=()=>{answers[q.id]=letter;renderQuestion()};$('answers').appendChild(b)});
  $('prev').disabled=index===0;$('next').textContent=index===activeSet.length-1?'Finish questions':'Save & Next';$('mark').textContent=review.has(q.id)?'Remove review mark':'Mark for review';renderNav();
 }
 function renderNav(){const nav=$('navgrid');nav.innerHTML='';activeSet.forEach((q,i)=>{const b=document.createElement('button');b.textContent=i+1;if(answers[q.id])b.classList.add('done');if(review.has(q.id))b.classList.add('review');if(i===index)b.classList.add('current');b.title='Question '+q.id;b.onclick=()=>{index=i;renderQuestion()};nav.appendChild(b)});$('counts').textContent=Object.keys(answers).length+' answered · '+(activeSet.length-Object.keys(answers).length)+' unanswered · '+review.size+' marked for review'}
@@ -91,7 +121,34 @@ $('next').onclick=()=>{if(index<activeSet.length-1){index++;renderQuestion()}els
 $('clear').onclick=()=>{delete answers[activeSet[index].id];renderQuestion()};
 $('mark').onclick=()=>{const id=activeSet[index].id;review.has(id)?review.delete(id):review.add(id);renderQuestion()};
 $('submit').onclick=()=>{if(confirm('Submit this test now?'))submitTest()};
-function submitTest(){if(finished)return;finished=true;clearInterval(interval);show('results');const attempted=Object.keys(answers).length,unanswered=activeSet.length-attempted;let correct=0;activeSet.forEach(q=>{if(answers[q.id]===answerKey[q.id])correct++});const wrong=attempted-correct;$('summary').innerHTML='<p><strong>'+testLabel+'</strong></p><p><span class="resultnum">'+correct+'</span> correct out of '+activeSet.length+'</p><p>'+wrong+' incorrect · '+unanswered+' unanswered · '+review.size+' marked for review</p><p>Score: <strong>'+Math.round(correct/activeSet.length*100)+'%</strong></p><p class="notice">The answer key is extracted from the green-highlighted options in the source PDF. Review your responses below.</p>';$('reviewList').innerHTML=''}
+function submitTest(){
+ if(finished)return;
+ finished=true;clearInterval(interval);show('results');
+ const attempted=Object.keys(answers).length,unanswered=activeSet.length-attempted;
+ let correct=0;activeSet.forEach(q=>{if(answers[q.id]===answerKey[q.id])correct++});
+ const wrong=attempted-correct,percent=activeSet.length?Math.round(correct/activeSet.length*100):0;
+ $('summary').innerHTML='<p><strong>'+testLabel+'</strong></p><p><span class="resultnum">'+correct+'</span> correct out of '+activeSet.length+'</p><p>'+wrong+' incorrect · '+unanswered+' unanswered · '+review.size+' marked for review</p><p>Score: <strong>'+percent+'%</strong></p><p class="notice">Green indicates the answer key from the source PDF; red indicates a selected wrong answer. Choice text may be missing for image-based options.</p>';
+ $('reviewList').innerHTML='';
+}
 $('backHome').onclick=()=>{clearInterval(interval);show('home')};
-$('reviewBtn').onclick=()=>{const out=$('reviewList');out.innerHTML='<h3>Your responses</h3>';activeSet.forEach((q,i)=>{const d=document.createElement('div');d.className='panel';const chosen=answers[q.id]||'—',correct=answerKey[q.id],status=answers[q.id]===correct?'Correct':answers[q.id]?'Incorrect':'Unanswered';d.innerHTML='<strong>Q'+q.id+' · '+status+' · Your answer: '+chosen+' · Correct answer: '+correct+(review.has(q.id)?' · Marked for review':'')+'</strong><p></p>';d.querySelector('p').textContent=q.text;out.appendChild(d)})};
+$('reviewBtn').onclick=()=>{
+ const out=$('reviewList');out.innerHTML='<h3>Your responses and answer key</h3>';
+ activeSet.forEach(q=>{
+  const d=document.createElement('div');d.className='panel';
+  const chosen=answers[q.id]||'',correct=answerKey[q.id],status=chosen===correct?'Correct':chosen?'Incorrect':'Unanswered';
+  const heading=document.createElement('strong');
+  heading.textContent='Q'+q.id+' · '+status+' · Your answer: '+(chosen||'—')+' · Correct answer: '+correct+(review.has(q.id)?' · Marked for review':'');
+  d.appendChild(heading);
+  const stem=document.createElement('p');stem.className='question';stem.textContent=q.text||'[Question text is image-based in the source PDF.]';d.appendChild(stem);
+  ['A','B','C','D'].forEach((letter,i)=>{
+   const option=document.createElement('div');option.className='answer';
+   if(letter===correct)option.classList.add('correct');
+   if(letter===chosen&&chosen!==correct)option.classList.add('incorrect','selected');
+   const tag=document.createElement('span');tag.className='letter';tag.textContent=letter;
+   const body=document.createElement('span');body.textContent=q.options&&q.options[i]?q.options[i]:'Choice text is image-based or unavailable in extracted PDF; refer to the original PDF.';
+   option.append(tag,body);d.appendChild(option);
+  });
+  out.appendChild(d);
+ });
+};
 </script></body></html>
