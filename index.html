@@ -90,10 +90,11 @@ $('loadPdf').addEventListener('click',async()=>{
   const bytes=await file.arrayBuffer(), pdf=await pdfjsLib.getDocument({data:bytes}).promise;let raw='';
   for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),content=await page.getTextContent();const lines=[];let lastY=null,line='';for(const item of content.items){const y=Math.round(item.transform?.[5]||0);if(lastY!==null&&Math.abs(y-lastY)>2){lines.push(line);line=''}line+=(line?' ':'')+item.str;lastY=y}if(line)lines.push(line);raw+=lines.join('\n')+'\n';if(p%10===0)$('loadStatus').textContent='Reading page '+p+' of '+pdf.numPages+'…'}
   bank=splitQuestions(raw);
+  const markerCount=[...raw.matchAll(/^\s*\d{1,3}\.\)\s*/gm)].length;
   const ids=new Set(bank.map(q=>q.id)),missing=Array.from({length:400},(_,i)=>i+1).filter(n=>!ids.has(n));
-  if(bank.length!==400||missing.length||ids.size!==bank.length){
+  if(markerCount!==400||bank.length!==400||missing.length||ids.size!==bank.length){
    const detail=missing.length?' Missing question IDs: '+missing.slice(0,12).join(', ')+(missing.length>12?'…':'')+'.':'';
-   throw new Error('Expected 400 unique questions, but found '+bank.length+'.'+detail+' Please use the original RankMitra PDF.');
+   throw new Error('Expected 400 unique question markers, but found '+markerCount+' markers and '+bank.length+' unique questions.'+detail+' Please use the original RankMitra PDF.');
   }
   $('loadStatus').textContent='Imported and validated all 400 questions. Choose a set below.';
   renderSets();
