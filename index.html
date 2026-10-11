@@ -61,7 +61,7 @@ $('loadPdf').addEventListener('click',async()=>{
  $('loadPdf').disabled=true;$('loadStatus').textContent='Reading PDF pages…';
  try{
   const bytes=await file.arrayBuffer(), pdf=await pdfjsLib.getDocument({data:bytes}).promise;let raw='';
-  for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),content=await page.getTextContent();raw+=content.items.map(x=>x.str).join(' ')+'\n';if(p%10===0)$('loadStatus').textContent='Reading page '+p+' of '+pdf.numPages+'…'}
+  for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),content=await page.getTextContent();const lines=[];let lastY=null,line='';for(const item of content.items){const y=Math.round(item.transform?.[5]||0);if(lastY!==null&&Math.abs(y-lastY)>2){lines.push(line);line=''}line+=(line?' ':'')+item.str;lastY=y}if(line)lines.push(line);raw+=lines.join('\n')+'\n';if(p%10===0)$('loadStatus').textContent='Reading page '+p+' of '+pdf.numPages+'…'}
   bank=splitQuestions(raw);
   if(!bank.length)throw new Error('Could not find numbered questions. Please select the original question PDF.');
   $('loadStatus').textContent='Imported '+bank.length+' numbered questions. Choose a set below.';
