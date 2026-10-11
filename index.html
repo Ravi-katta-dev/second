@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RRB Section Controller — Mock Tests</title>
+<style>
+:root{color-scheme:light;--ink:#172033;--muted:#64748b;--line:#e2e8f0;--brand:#2457d6;--bg:#f5f7fb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}button,input{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:10px 15px;font-weight:650;background:var(--brand);color:white}button.secondary{background:#e8edf8;color:#23324f}button:disabled{opacity:.45;cursor:not-allowed}
+header{background:#101a31;color:white;padding:25px max(20px,calc((100vw - 1100px)/2))}header h1{margin:0;font-size:clamp(1.4rem,3vw,2rem)}header p{margin:5px 0 0;color:#c6d2ee}
+main{max-width:1100px;margin:24px auto;padding:0 16px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 4px 20px #15264a0a}.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.muted{color:var(--muted)}.sets{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:16px}.set{border:1px solid var(--line);border-radius:12px;padding:16px;background:white;text-align:left;color:var(--ink)}.set:hover{border-color:var(--brand)}.set strong{display:block;font-size:1.05rem}.set span{font-size:.9rem;color:var(--muted)}.hidden{display:none!important}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:16px}.question{white-space:pre-wrap;font-size:1.05rem;line-height:1.75;overflow-wrap:anywhere}.topline{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:.93rem}.answers{display:grid;gap:10px;margin:20px 0}.answer{border:1px solid var(--line);background:white;color:var(--ink);text-align:left;display:flex;gap:10px;align-items:flex-start}.answer.selected{border-color:var(--brand);background:#eef3ff;box-shadow:0 0 0 1px var(--brand)}.letter{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:#edf1f8;font-weight:750}.answer.selected .letter{background:var(--brand);color:white}.navgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:12px}.navgrid button{padding:8px 0;border-radius:8px;background:#edf1f8;color:var(--ink)}.navgrid button.done{background:#d7e9dd}.navgrid button.current{outline:2px solid var(--brand)}.navgrid button.review{background:#ffedc2}.timer{font-weight:750;font-variant-numeric:tabular-nums}.status{font-size:.88rem;color:var(--muted)}.notice{padding:12px;background:#fff8e6;border-radius:10px;color:#76531b}.resultnum{font-size:2rem;font-weight:800}.footer{font-size:.85rem;color:var(--muted);padding:10px 0 30px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.layout aside{order:-1}.navgrid{grid-template-columns:repeat(8,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>RRB Section Controller — Mock Tests</h1><p>Practice in sets of 100 questions • track answers • review before submitting</p></header>
+<main>
+<section id="home" class="panel">
+<h2>Start practicing</h2>
+<p class="muted">The source PDF contains 400 numbered questions. Upload the PDF below to build the test sets in your browser. The source PDF's answer key was not detected, so this tool tracks attempts and answers but does not claim to grade correctness.</p>
+<div class="row"><input id="pdfFile" type="file" accept=".pdf,application/pdf"><button id="loadPdf">Import question PDF</button></div>
+<p id="loadStatus" class="status" aria-live="polite">Choose the RankMitra RRB Section Controller PDF. Processing stays in your browser.</p>
+<div id="sets" class="sets"></div>
+<div class="notice" style="margin-top:18px">Some questions in the PDF use diagrams or image-based answer choices. PDF text extraction may not capture those visuals; keep the original PDF open for reference when needed.</div>
+</section>
+<section id="test" class="hidden">
+<div class="panel topline"><span id="setLabel">Mock Test</span><span>Time left: <span id="timer" class="timer">90:00</span></span><span id="progress">Question 1 of 100</span></div>
+<div class="layout">
+<div class="panel">
+<div class="topline"><span id="qNumber">Question 1</span><span id="savedState">Not answered</span></div>
+<h2 id="qText" class="question"></h2>
+<div id="answers" class="answers"></div>
+<div class="row"><button id="prev" class="secondary">Previous</button><button id="clear" class="secondary">Clear response</button><button id="mark" class="secondary">Mark for review</button><span style="flex:1"></span><button id="next">Save &amp; Next</button></div>
+</div>
+<aside class="panel"><h3>Question palette</h3><p class="status">Green = answered · Yellow = review</p><div id="navgrid" class="navgrid"></div><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><p id="counts" class="muted"></p><button id="submit" style="width:100%">Submit test</button><p class="status">Your selections stay in this browser tab while the test is open.</p></aside>
+</div>
+</section>
+<section id="results" class="panel hidden"><h2>Test summary</h2><div id="summary"></div><div class="row"><button id="backHome">Back to test sets</button><button id="reviewBtn" class="secondary">Review answers</button></div><div id="reviewList"></div></section>
+<div class="footer">Built from the uploaded RRB Section Controller 2025–26 question PDF. This is an unofficial practice interface.</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const $=id=>document.getElementById(id);
+let bank=[], activeSet=[], answers={}, review=new Set(), index=0, remaining=5400, interval=null, finished=false, testLabel='';
+function show(id){['home','test','results'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function splitQuestions(raw){
+ const text=raw.replace(/\r/g,'\n').replace(/\f/g,'\n');
+ const re=/^\s*(\d{1,3})\.\)\s*/gm, hits=[...text.matchAll(re)], found=[];
+ for(let i=0;i<hits.length;i++){
+  const n=Number(hits[i][1]); if(n<1||n>1000)continue;
+  let part=text.slice(hits[i].index+(hits[i][0].length-hits[i][0].trimStart().length),i+1<hits.length?hits[i+1].index:text.length);
+  part=part.replace(/^\s*\d{1,3}\.\)\s*/,'').split('\n').map(s=>s.trim()).filter(s=>s&&!/\d+(?:\.\d+)?%\s*attempted right/i.test(s)&&!/^RRB Section Controller/i.test(s)&&s!=='By RankMitra').join('\n').trim();
+  if(!found.some(q=>q.id===n))found.push({id:n,text:part});
+ }
+ return found.sort((a,b)=>a.id-b.id);
+}
+$('loadPdf').addEventListener('click',async()=>{
+ const file=$('pdfFile').files[0]; if(!file){$('loadStatus').textContent='Please choose the source PDF first.';return}
+ if(!window.pdfjsLib){$('loadStatus').textContent='PDF reader library did not load. Check your internet connection and reload this page.';return}
+ $('loadPdf').disabled=true;$('loadStatus').textContent='Reading PDF pages…';
+ try{
+  const bytes=await file.arrayBuffer(), pdf=await pdfjsLib.getDocument({data:bytes}).promise;let raw='';
+  for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p),content=await page.getTextContent();raw+=content.items.map(x=>x.str).join(' ')+'\n';if(p%10===0)$('loadStatus').textContent='Reading page '+p+' of '+pdf.numPages+'…'}
+  bank=splitQuestions(raw);
+  if(!bank.length)throw new Error('Could not find numbered questions. Please select the original question PDF.');
+  $('loadStatus').textContent='Imported '+bank.length+' numbered questions. Choose a set below.';
+  renderSets();
+ }catch(e){$('loadStatus').textContent='Import failed: '+e.message+'. Try downloading the PDF and selecting it again.'}
+ finally{$('loadPdf').disabled=false}
+});
+function renderSets(){
+ $('sets').innerHTML='';
+ for(let start=0;start<bank.length;start+=100){const end=Math.min(start+100,bank.length),b=document.createElement('button');b.className='set';b.innerHTML='<strong>Mock Test '+(Math.floor(start/100)+1)+'</strong><span>Questions '+(start+1)+'–'+end+' · '+(end-start)+' questions</span>';b.onclick=()=>startTest(start,end);$('sets').appendChild(b)}
+}
+function startTest(start,end){
+ activeSet=bank.slice(start,end);answers={};review=new Set();index=0;remaining=5400;finished=false;testLabel='Mock Test '+(Math.floor(start/100)+1);$('setLabel').textContent=testLabel;show('test');renderQuestion();clearInterval(interval);updateTimer();interval=setInterval(()=>{remaining--;updateTimer();if(remaining<=0)submitTest()},1000)
+}
+function updateTimer(){const m=Math.floor(remaining/60),s=remaining%60;$('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');$('timer').style.color=remaining<300?'#c22':'inherit'}
+function renderQuestion(){
+ const q=activeSet[index];$('qNumber').textContent='Question '+q.id;$('qText').textContent=q.text||'[Question text appears to be image-based in the source PDF. Refer to the original PDF for this question.]';
+ $('progress').textContent='Question '+(index+1)+' of '+activeSet.length;$('savedState').textContent=answers[q.id]?'Selected: '+answers[q.id]:'Not answered';
+ $('answers').innerHTML='';
+ ['A','B','C','D'].forEach(letter=>{const b=document.createElement('button');b.className='answer'+(answers[q.id]===letter?' selected':'');b.innerHTML='<span class="letter">'+letter+'</span><span>Option '+letter+'</span>';b.onclick=()=>{answers[q.id]=letter;renderQuestion()};$('answers').appendChild(b)});
+ $('prev').disabled=index===0;$('next').textContent=index===activeSet.length-1?'Finish questions':'Save & Next';$('mark').textContent=review.has(q.id)?'Remove review mark':'Mark for review';renderNav();
+}
+function renderNav(){const nav=$('navgrid');nav.innerHTML='';activeSet.forEach((q,i)=>{const b=document.createElement('button');b.textContent=i+1;if(answers[q.id])b.classList.add('done');if(review.has(q.id))b.classList.add('review');if(i===index)b.classList.add('current');b.title='Question '+q.id;b.onclick=()=>{index=i;renderQuestion()};nav.appendChild(b)});$('counts').textContent=Object.keys(answers).length+' answered · '+(activeSet.length-Object.keys(answers).length)+' unanswered · '+review.size+' marked for review'}
+$('prev').onclick=()=>{if(index>0){index--;renderQuestion()}};
+$('next').onclick=()=>{if(index<activeSet.length-1){index++;renderQuestion()}else submitTest()};
+$('clear').onclick=()=>{delete answers[activeSet[index].id];renderQuestion()};
+$('mark').onclick=()=>{const id=activeSet[index].id;review.has(id)?review.delete(id):review.add(id);renderQuestion()};
+$('submit').onclick=()=>{if(confirm('Submit this test now?'))submitTest()};
+function submitTest(){if(finished)return;finished=true;clearInterval(interval);show('results');const attempted=Object.keys(answers).length,unanswered=activeSet.length-attempted;$('summary').innerHTML='<p><strong>'+testLabel+'</strong></p><p><span class="resultnum">'+attempted+'</span> answered out of '+activeSet.length+'</p><p>'+unanswered+' unanswered · '+review.size+' marked for review</p><p class="notice">No answer key was detected in the source PDF. Correct/incorrect scoring is therefore unavailable; your selections are listed below for self-review.</p>';$('reviewList').innerHTML=''}
+$('backHome').onclick=()=>{clearInterval(interval);show('home')};
+$('reviewBtn').onclick=()=>{const out=$('reviewList');out.innerHTML='<h3>Your responses</h3>';activeSet.forEach((q,i)=>{const d=document.createElement('div');d.className='panel';d.innerHTML='<strong>Q'+q.id+' · '+(answers[q.id]?'Selected '+answers[q.id]:'Unanswered')+(review.has(q.id)?' · Marked for review':'')+'</strong><p></p>';d.querySelector('p').textContent=q.text;out.appendChild(d)})};
+</script></body></html>
